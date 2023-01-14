@@ -41,16 +41,6 @@ resource "aws_budgets_budget" "root_everything" {
 
   notification {
     comparison_operator = "GREATER_THAN"
-    threshold           = 80
-    threshold_type      = "PERCENTAGE"
-    notification_type   = "ACTUAL"
-    subscriber_email_addresses = [
-      local.budget_admin_email
-    ]
-  }
-
-  notification {
-    comparison_operator = "GREATER_THAN"
     threshold           = 70
     threshold_type      = "PERCENTAGE"
     notification_type   = "ACTUAL"
@@ -60,20 +50,26 @@ resource "aws_budgets_budget" "root_everything" {
   }
 
   notification {
-    comparison_operator = "GREATER_THAN"
-    threshold           = 100
-    threshold_type      = "PERCENTAGE"
-    notification_type   = "FORECASTED"
-    subscriber_email_addresses = [
-      local.budget_admin_email
-    ]
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = var.emails
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 90
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = var.emails
   }
 }
 
 resource "aws_budgets_budget" "accounts_all" {
   for_each = var.account_ids
 
-  name              = format("%s-%s / ALL / Monthly", title(var.org_name), title(each.value))
+  name              = format("%s-%s / ALL / Monthly", title(var.org_name), title(each.key))
   budget_type       = "COST"
   limit_amount      = 10
   limit_unit        = var.budget_limit_unit
@@ -83,7 +79,7 @@ resource "aws_budgets_budget" "accounts_all" {
   cost_filter {
     name = "LinkedAccount"
     values = [
-      each.key
+      each.value
     ]
   }
 
@@ -126,4 +122,49 @@ resource "aws_budgets_budget" "accounts_all" {
     notification_type          = "FORECASTED"
     subscriber_email_addresses = var.emails
   }
+}
+
+resource "aws_budgets_budget" "services" {
+  for_each = var.budget_services
+
+  name              = format("%s / %s / Monthly", title(var.org_name), each.key)
+  budget_type       = "COST"
+  limit_amount      = each.value.limit_amount
+  limit_unit        = each.value.limit_unit
+  time_unit         = each.value.time_unit
+  time_period_start = "2020-01-01_00:00"
+
+  cost_filter {
+    name = "Service"
+    values = [
+      lookup(local.aws_services, each.key)
+    ]
+  }
+
+  notification {
+    comparison_operator = "GREATER_THAN"
+    threshold           = 70
+    threshold_type      = "PERCENTAGE"
+    notification_type   = "ACTUAL"
+    subscriber_sns_topic_arns = [
+      aws_sns_topic.budgets_alarm.arn
+    ]
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = var.emails
+  }
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 90
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "ACTUAL"
+    subscriber_email_addresses = var.emails
+  }
+
 }

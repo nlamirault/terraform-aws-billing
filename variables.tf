@@ -65,6 +65,17 @@ variable "budget_time_unit" {
   default     = "MONTHLY"
 }
 
+variable "budget_services" {
+  description = "AWS services and their configuration of budget."
+  type = map(object({
+    limit_amount = string
+    limit_unit   = string
+    time_unit    = string
+  }))
+  default = {}
+}
+
+
 variable "sns_topic_name" {
   type        = string
   description = "SNS Topic name for budget alerts"
